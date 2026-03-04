@@ -1,0 +1,57 @@
+# Root ignore rules for the full monorepo (frontend + node backend + python video backend)
+
+# Secrets
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Node
+**/node_modules/
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
+
+# Frontend builds
+**/dist/
+**/dist-ssr/
+**/*.local
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/*.pyd
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.coverage
+**/.venv/
+**/venv/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*.swn
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Media / temp (recordings, uploads)
+**/*.mp4
+**/*.webm
+**/*.mov
+**/*.wav
+**/tmp/
+**/temp/
+
+ORACLE_DEPLOYMENT_GUIDE.md
+VIDEO_BACKEND_FREE_DEPLOY.md
+VIDEO_BACKEND_TESTING.md
+VIDEO_BACKEND.postman_collection.json

@@ -1,0 +1,31 @@
+services:
+  app-api:
+    build:
+      context: ./question-generation-backend
+    container_name: ai-interview-app-api
+    env_file:
+      - ./question-generation-backend/.env
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  video-api:
+    build:
+      context: ./ai-video-backend
+    container_name: ai-interview-video-api
+    env_file:
+      - ./ai-video-backend/.env
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./fe
+    container_name: ai-interview-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - app-api
+      - video-api
+    restart: unless-stopped
