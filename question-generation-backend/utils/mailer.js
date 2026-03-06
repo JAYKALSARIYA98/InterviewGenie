@@ -5,13 +5,26 @@ import bcrypt from "bcryptjs";
 
 dotenv.config();
 
+const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
+const smtpPort = parseInt(process.env.SMTP_PORT || "587", 10);
+const smtpSecure =
+  process.env.SMTP_SECURE != null
+    ? String(process.env.SMTP_SECURE).toLowerCase() === "true"
+    : smtpPort === 465;
+const smtpUser = process.env.SMTP_USER || "";
+const smtpPass = process.env.SMTP_PASS || "";
+
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: parseInt(process.env.SMTP_PORT || "587", 10),
-  secure: false,
+  host: smtpHost,
+  port: smtpPort,
+  secure: smtpSecure,
+  requireTLS: String(process.env.SMTP_REQUIRE_TLS || "false").toLowerCase() === "true",
+  connectionTimeout: parseInt(process.env.SMTP_CONNECTION_TIMEOUT_MS || "10000", 10),
+  greetingTimeout: parseInt(process.env.SMTP_GREETING_TIMEOUT_MS || "10000", 10),
+  socketTimeout: parseInt(process.env.SMTP_SOCKET_TIMEOUT_MS || "15000", 10),
   auth: {
-    user: process.env.SMTP_USER || "",
-    pass: process.env.SMTP_PASS || "",
+    user: smtpUser,
+    pass: smtpPass,
   },
 });
 
@@ -35,18 +48,23 @@ export function otpExpiry(minutes = 10) {
 }
 
 export async function sendOtpEmail(to, subject, otp) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  if (!smtpUser || !smtpPass) {
     console.warn("SMTP credentials not configured; OTP email will not be sent.");
-    return;
+    return { sent: false, reason: "smtp_not_configured" };
   }
 
   const html = `<p>Your one-time password is: <strong>${otp}</strong></p><p>This code will expire in 10 minutes.</p>`;
 
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
-    to,
-    subject,
-    html,
-  });
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || smtpUser,
+      to,
+      subject,
+      html,
+    });
+    return { sent: true };
+  } catch (err) {
+    console.error("SMTP send error:", err);
+    return { sent: false, reason: "smtp_send_failed" };
+  }
 }
-

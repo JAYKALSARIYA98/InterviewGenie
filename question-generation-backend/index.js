@@ -61,13 +61,16 @@ app.use(
 );
 app.use(express.json());
 
-app.get("/health", (req, res) => {
+const healthHandler = (req, res) => {
   res.json({
     ok: true,
     service: "app-api",
     time: new Date().toISOString(),
   });
-});
+};
+
+app.get("/health", healthHandler);
+app.get("/api/health", healthHandler);
 
 app.get("/video/health", async (req, res) => {
   try {
@@ -214,7 +217,13 @@ app.post("/auth/register", async (req, res) => {
       emailOtp: { codeHash, expiresAt },
     });
 
-    await sendOtpEmail(user.email, "Verify your email", otp);
+    const emailResult = await sendOtpEmail(user.email, "Verify your email", otp);
+    if (!emailResult?.sent) {
+      await User.deleteOne({ _id: user._id });
+      return res
+        .status(503)
+        .json({ error: "OTP email service is unavailable. Please try again shortly." });
+    }
 
     res.status(201).json({ message: "Registered successfully. Please verify your email." });
   } catch (err) {
@@ -306,7 +315,14 @@ app.post("/auth/request-password-reset", async (req, res) => {
     user.resetOtp = { codeHash, expiresAt };
     await user.save();
 
-    await sendOtpEmail(user.email, "Password reset code", otp);
+    const emailResult = await sendOtpEmail(user.email, "Password reset code", otp);
+    if (!emailResult?.sent) {
+      user.resetOtp = undefined;
+      await user.save();
+      return res
+        .status(503)
+        .json({ error: "OTP email service is unavailable. Please try again shortly." });
+    }
 
     res.json({ message: "If this email exists, a reset code has been sent." });
   } catch (err) {
