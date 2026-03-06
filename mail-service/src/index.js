@@ -62,6 +62,10 @@ app.post("/send-otp", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Mail service running on http://localhost:${PORT}`);
-});
+export default app;
+
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Mail service running on http://localhost:${PORT}`);
+  });
+}
