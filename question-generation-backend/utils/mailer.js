@@ -1,33 +1,11 @@
-import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 
 dotenv.config();
 
-
-const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
-const smtpPort = parseInt(process.env.SMTP_PORT || "587", 10);
-const smtpSecure =
-  process.env.SMTP_SECURE != null
-    ? String(process.env.SMTP_SECURE).toLowerCase() === "true"
-    : smtpPort === 465;
-const smtpUser = process.env.SMTP_USER || "";
-const smtpPass = process.env.SMTP_PASS || "";
-
-// Create transporter
-const transporter = nodemailer.createTransport({
-  host: smtpHost,
-  port: smtpPort,
-  secure: smtpSecure,
-  requireTLS: String(process.env.SMTP_REQUIRE_TLS || "false").toLowerCase() === "true",
-  connectionTimeout: parseInt(process.env.SMTP_CONNECTION_TIMEOUT_MS || "10000", 10),
-  greetingTimeout: parseInt(process.env.SMTP_GREETING_TIMEOUT_MS || "10000", 10),
-  socketTimeout: parseInt(process.env.SMTP_SOCKET_TIMEOUT_MS || "15000", 10),
-  auth: {
-    user: smtpUser,
-    pass: smtpPass,
-  },
-});
+const mailServiceUrl = (process.env.MAIL_SERVICE_URL || "").replace(/\/$/, "");
+const mailServiceKey = process.env.MAIL_SERVICE_KEY || "";
+const mailServiceTimeoutMs = parseInt(process.env.MAIL_SERVICE_TIMEOUT_MS || "10000", 10);
 
 export function generateOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -51,32 +29,85 @@ export function otpExpiry(minutes = 10) {
   return expiresAt;
 }
 
-// Send OTP email
-export async function sendOtpEmail(to, subject, otp) {
-  if (!smtpUser || !smtpPass) {
-    console.warn("SMTP credentials not configured; OTP email will not be sent.");
-    return { sent: false, reason: "smtp_not_configured" };
-  }
+function buildOtpHtml(subject, otp) {
+  const isReset = String(subject || "").toLowerCase().includes("reset");
+  const title = isReset ? "Password Reset Code" : "Verify Your Email";
+  const subtitle = isReset
+    ? "Use this one-time code to reset your password."
+    : "Use this one-time code to complete your signup.";
 
-  const html = `
-    <div style="font-family: Arial, sans-serif; padding:20px">
-      <h2>Email Verification</h2>
-      <p>Your one-time password is:</p>
-      <h1 style="letter-spacing:4px">${otp}</h1>
-      <p>This code will expire in <b>10 minutes</b>.</p>
-    </div>
-  `;
+  return `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f4f7fb;font-family:Segoe UI,Arial,sans-serif;color:#0f172a;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
+            <tr>
+              <td style="padding:28px 28px 20px;background:linear-gradient(135deg,#0ea5e9,#22c55e);color:#ffffff;">
+                <div style="font-size:12px;letter-spacing:1.2px;opacity:.9;">AI INTERVIEW</div>
+                <h1 style="margin:10px 0 0;font-size:24px;line-height:1.2;">${title}</h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 28px;">
+                <p style="margin:0 0 12px;font-size:15px;line-height:1.6;">${subtitle}</p>
+                <p style="margin:0 0 18px;font-size:15px;line-height:1.6;">This code expires in <b>10 minutes</b>.</p>
+                <div style="margin:0 0 18px;padding:14px 16px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;">
+                  <div style="font-size:12px;color:#475569;letter-spacing:1px;margin-bottom:6px;">ONE-TIME CODE</div>
+                  <div style="font-size:30px;letter-spacing:8px;font-weight:700;color:#0f172a;">${otp}</div>
+                </div>
+                <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">
+                  If you did not request this, you can safely ignore this email.
+                </p>
+              </td>
+            </tr>
+          </table>
+          <div style="max-width:560px;margin:12px auto 0;color:#94a3b8;font-size:12px;text-align:center;">
+            Sent by AI Interview Platform
+          </div>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+async function sendViaMailService(to, subject, html) {
+  if (!mailServiceUrl || !mailServiceKey) {
+    return { sent: false, reason: "mail_service_not_configured" };
+  }
 
   try {
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || smtpUser,
-      to,
-      subject,
-      html,
+    const response = await fetch(`${mailServiceUrl}/send-otp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-mailer-key": mailServiceKey,
+      },
+      body: JSON.stringify({ to, subject, html }),
+      signal: AbortSignal.timeout(mailServiceTimeoutMs),
     });
+
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("Mail service error:", response.status, responseBody);
+      return { sent: false, reason: "mail_service_send_failed" };
+    }
+
     return { sent: true };
   } catch (err) {
-    console.error("SMTP send error:", err);
-    return { sent: false, reason: "smtp_send_failed" };
+    console.error("Mail service error:", err);
+    return { sent: false, reason: "mail_service_send_failed" };
   }
+}
+
+// Send OTP email
+export async function sendOtpEmail(to, subject, otp) {
+  const html = buildOtpHtml(subject, otp);
+  const result = await sendViaMailService(to, subject, html);
+  if (!result.sent) {
+    console.warn("Mail service is not configured or failed.");
+  }
+  return result;
 }

@@ -19,7 +19,6 @@
     "groq-sdk": "^0.16.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.2.1",
-    "multer": "^2.0.2",
-    "nodemailer": "^8.0.1"
+    "multer": "^2.0.2"
   }
 }
