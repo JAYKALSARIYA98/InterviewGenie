@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import Groq from "groq-sdk";
 import multer from "multer";
+import mongoose from "mongoose";
 import { connectDB } from "./utils/db.js";
 import User from "./models/User.js";
 import Interview from "./models/Interview.js";
@@ -34,6 +35,12 @@ const upload = multer({
 });
 const VIDEO_UPSTREAM_TIMEOUT_MS = parseInt(process.env.VIDEO_UPSTREAM_TIMEOUT_MS || "240000", 10);
 const VIDEO_UPSTREAM_RETRIES = parseInt(process.env.VIDEO_UPSTREAM_RETRIES || "1", 10);
+
+function parseBoundedInt(value, fallback, min, max) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(parsed, min), max);
+}
 
 async function fetchVideoUpstream(url, options = {}, retries = VIDEO_UPSTREAM_RETRIES) {
   let lastError;
@@ -486,6 +493,10 @@ app.get("/interviews", authenticateMiddleware, async (req, res) => {
 
 app.get("/interviews/:id", authenticateMiddleware, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "Invalid interview id" });
+    }
+
     const interview = await Interview.findOne({
       _id: req.params.id,
       user: req.user.sub,
@@ -506,8 +517,8 @@ app.get("/leaderboard", async (req, res) => {
   try {
     const period = String(req.query.period || "all");
     const metric = String(req.query.metric || "best");
-    const limit = Math.min(Math.max(parseInt(req.query.limit || "10", 10), 1), 50);
-    const minInterviews = Math.max(parseInt(req.query.minInterviews || "1", 10), 1);
+    const limit = parseBoundedInt(req.query.limit, 10, 1, 50);
+    const minInterviews = parseBoundedInt(req.query.minInterviews, 1, 1, 1000);
 
     const daysMap = { "7d": 7, "30d": 30, "90d": 90, all: 0 };
     const days = daysMap[period] ?? 0;
@@ -547,7 +558,6 @@ app.get("/leaderboard", async (req, res) => {
           _id: 0,
           userId: "$user._id",
           name: "$user.name",
-          email: "$user.email",
           bestScore: { $round: ["$bestScore", 2] },
           avgScore: { $round: ["$avgScore", 2] },
           attempts: 1,
@@ -571,7 +581,11 @@ app.get("/leaderboard/me", authenticateMiddleware, async (req, res) => {
   try {
     const period = String(req.query.period || "all");
     const metric = String(req.query.metric || "best");
-    const minInterviews = Math.max(parseInt(req.query.minInterviews || "1", 10), 1);
+    const minInterviews = parseBoundedInt(req.query.minInterviews, 1, 1, 1000);
+    if (!mongoose.Types.ObjectId.isValid(req.user.sub)) {
+      return res.status(401).json({ error: "Invalid token subject" });
+    }
+    const meObjectId = new mongoose.Types.ObjectId(req.user.sub);
 
     const daysMap = { "7d": 7, "30d": 30, "90d": 90, all: 0 };
     const days = daysMap[period] ?? 0;
@@ -599,7 +613,7 @@ app.get("/leaderboard/me", authenticateMiddleware, async (req, res) => {
 
     const meSummary = await Interview.aggregate([
       ...basePipeline,
-      { $match: { _id: req.user.sub } },
+      { $match: { _id: meObjectId } },
       {
         $project: {
           _id: 0,
