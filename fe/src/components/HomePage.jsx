@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Sparkles, ArrowRight, PlayCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "../auth/AuthContext
 import { APP_API_BASE } from "../config";
 
 export default function HomePage() {
@@ -92,7 +92,7 @@ export default function HomePage() {
           </motion.button>
 
           <motion.a
-            href="https://youtu.be/cyTJttvtTn8"
+            href="https://www.youtube.com/watch?v=czjKFkQY2Ao"
             target="_blank"
             rel="noopener noreferrer"
             whileHover={{ scale: 1.02 }}
