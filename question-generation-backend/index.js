@@ -156,21 +156,41 @@ app.post("/generate-questions", async (req, res) => {
     }
 
     const prompt = `
-You are generating spoken mock interview questions.
+You are an expert interviewer conducting a realistic mock interview.
 
-Role: ${role}
-Experience: ${experience}
-Domain: ${industry}
-Difficulty: ${difficulty}
+Context:
+- Role: ${role}
+- Experience Level: ${experience}
+- Industry/Domain: ${industry}
+- Difficulty: ${difficulty}
 
-Rules:
-- Generate exactly 5 concise, verbal-answer questions.
-- Focus on real-world decision making, communication, and practical depth.
-- No coding exercise questions.
-- Keep questions clear enough to answer in 60-120 seconds.
-- Return ONLY JSON in this schema:
+Task:
+Generate exactly 5 high-quality mock interview questions suitable for a spoken response.
+
+Requirements:
+- Questions must reflect real-world scenarios, trade-offs, and decision-making.
+- Emphasize communication, reasoning, and practical experience.
+- Avoid theoretical or textbook-style phrasing.
+- Do NOT include coding, algorithms, or technical exercises.
+- Each question should be answerable in 60–120 seconds verbally.
+- Vary the questions (e.g., behavioral, situational, strategic, problem-solving).
+- Make them sound like a human interviewer speaking naturally.
+
+Constraints:
+- No explanations, no extra text.
+- No numbering or prefixes inside the strings.
+- Keep each question under 30 words.
+- Avoid repetition or overlap.
+
+Output format (STRICT JSON only):
 {
-  "questions": ["q1", "q2", "q3", "q4", "q5"]
+  "questions": [
+    "Question 1",
+    "Question 2",
+    "Question 3",
+    "Question 4",
+    "Question 5"
+  ]
 }
 `;
 
