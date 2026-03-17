@@ -156,33 +156,57 @@ app.post("/generate-questions", async (req, res) => {
     }
 
     const prompt = `
-You are an expert interviewer conducting a realistic mock interview.
+You are a senior technical interviewer designing a high-signal mock interview.
 
-Context:
+Inputs:
 - Role: ${role}
-- Experience Level: ${experience}
-- Industry/Domain: ${industry}
-- Difficulty: ${difficulty}
+- Experience (years): ${experience}
+- Domain/Technology: ${industry}
+- Difficulty: ${difficulty}  // must be one of: beginner, intermediate, advanced, expert
+
+Validation & Guardrails:
+- If any input is missing, vague, or nonsensical, assume reasonable defaults:
+  - Role: "Software Engineer"
+  - Experience: "3"
+  - Domain/Technology: "general backend systems"
+  - Difficulty: "intermediate"
+- Clamp experience to a realistic range (0–40 years).
+- Map experience + difficulty to depth:
+  - beginner → fundamentals, definitions, simple mechanics
+  - intermediate → applied concepts, trade-offs, system behavior
+  - advanced → deep internals, performance, edge cases
+  - expert → architecture-level, scaling limits, obscure pitfalls, design reasoning
+- If experience ≥ 10 years, questions MUST reflect senior-level depth regardless of difficulty.
 
 Task:
-Generate exactly 5 high-quality mock interview questions suitable for a spoken response.
+Generate exactly 5 purely technical interview questions.
 
-Requirements:
-- Questions must reflect real-world scenarios, trade-offs, and decision-making.
-- Emphasize communication, reasoning, and practical experience.
-- Avoid theoretical or textbook-style phrasing.
-- Do NOT include coding, algorithms, or technical exercises.
-- Each question should be answerable in 60–120 seconds verbally.
-- Vary the questions (e.g., behavioral, situational, strategic, problem-solving).
-- Make them sound like a human interviewer speaking naturally.
+Strict Requirements:
+- NO behavioral or situational questions.
+- NO "tell me about a project" or experience-based storytelling.
+- NO coding exercises or writing code.
+- Focus ONLY on technical depth: internals, optimization, trade-offs, system behavior.
+- Questions must require thinking, not recall.
+- Avoid generic or surface-level topics.
+- Make questions specific to the given domain/technology.
+- Each question should be answerable verbally in 60–120 seconds.
+- Each question must feel appropriate for the given experience + difficulty.
 
-Constraints:
-- No explanations, no extra text.
-- No numbering or prefixes inside the strings.
+Quality Constraints:
+- If experience is high (e.g., 10–15+ years), include:
+  - performance bottlenecks
+  - low-level mechanics
+  - edge cases and failure modes
+  - scaling or system constraints
+- Avoid obvious topics (e.g., "What is indexing?" for senior SQL).
+- Prefer “why”, “how”, and “what happens under the hood”.
+
+Formatting Rules:
 - Keep each question under 30 words.
-- Avoid repetition or overlap.
+- No numbering inside strings.
+- No explanations, no metadata, no extra text.
 
-Output format (STRICT JSON only):
+Output (STRICT JSON only):
 {
   "questions": [
     "Question 1",
