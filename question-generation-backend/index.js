@@ -156,57 +156,57 @@ app.post("/generate-questions", async (req, res) => {
     }
 
     const prompt = `
-You are a senior technical interviewer designing a high-signal mock interview.
+You are a Staff/Principal-level technical interviewer at a top tech company, known for asking questions that separate people who've truly worked deeply in a domain from people who've only read about it.
 
 Inputs:
 - Role: ${role}
 - Experience (years): ${experience}
 - Domain/Technology: ${industry}
-- Difficulty: ${difficulty}  // must be one of: beginner, intermediate, advanced, expert
+- Difficulty: ${difficulty} // one of: beginner, intermediate, advanced, expert
 
-Validation & Guardrails:
-- If any input is missing, vague, or nonsensical, assume reasonable defaults:
-  - Role: "Software Engineer"
-  - Experience: "3"
-  - Domain/Technology: "general backend systems"
-  - Difficulty: "intermediate"
-- Clamp experience to a realistic range (0–40 years).
-- Map experience + difficulty to depth:
-  - beginner → fundamentals, definitions, simple mechanics
-  - intermediate → applied concepts, trade-offs, system behavior
-  - advanced → deep internals, performance, edge cases
-  - expert → architecture-level, scaling limits, obscure pitfalls, design reasoning
-- If experience ≥ 10 years, questions MUST reflect senior-level depth regardless of difficulty.
+Validation:
+- Missing/vague/nonsensical inputs → defaults: Role="Software Engineer", Experience="3", Domain="general backend systems", Difficulty="intermediate".
+- Clamp experience to 0–40 years.
+- If experience ≥ 10, questions MUST be senior-level regardless of stated difficulty — treat difficulty as a floor, not a ceiling.
+
+Calibration examples (for reference only, do NOT reuse verbatim — generate fresh questions in the given domain):
+- Beginner / 0-2 yrs, SQL: "What's the difference between a LEFT JOIN and an INNER JOIN, and when would each return unexpected rows?"
+- Intermediate / 3-5 yrs, SQL: "You add an index to speed up a query but performance doesn't improve. What are the possible reasons?"
+- Advanced / 6-9 yrs, SQL: "How does a query planner decide between a nested loop join and a hash join, and what statistics does it use to make that call?"
+- Expert / 10+ yrs, SQL: "You're seeing intermittent deadlocks in a high-throughput OLTP system under composite index writes. Walk through how you'd isolate whether it's a lock ordering issue vs. a gap-lock artifact of the isolation level."
+
+Notice the progression: beginner asks for a definition, intermediate asks for diagnostic reasoning, advanced asks for internals, expert asks for reasoning through an ambiguous failure scenario with no single "textbook" answer.
+
+Banned — do NOT generate anything resembling these (too generic/overused regardless of level):
+- "What is [basic concept]?"
+- "What's the difference between X and Y?" (allowed ONLY at beginner level)
+- "Tell me about a time..." / "Describe a project where..."
+- "What is indexing?" / "What is REST?" / "What is a closure?" or equivalent 101-level questions for anyone above beginner
 
 Task:
-Generate exactly 5 purely technical interview questions.
+Generate exactly 5 purely technical interview questions, each targeting a DIFFERENT category so they don't overlap:
+1. Internals / how-it-works-under-the-hood
+2. Trade-offs / design decisions
+3. Performance / optimization / bottlenecks
+4. Failure modes / edge cases / debugging under ambiguity
+5. System behavior at scale / constraints
 
 Strict Requirements:
-- NO behavioral or situational questions.
-- NO "tell me about a project" or experience-based storytelling.
-- NO coding exercises or writing code.
-- Focus ONLY on technical depth: internals, optimization, trade-offs, system behavior.
-- Questions must require thinking, not recall.
-- Avoid generic or surface-level topics.
-- Make questions specific to the given domain/technology.
-- Each question should be answerable verbally in 60–120 seconds.
-- Each question must feel appropriate for the given experience + difficulty.
+- NO behavioral, situational, or "tell me about a project" questions.
+- NO coding exercises or requests to write code.
+- Each question must require reasoning, not recall.
+- Each question must be specific to the given Role + Domain — not generic enough to ask any engineer.
+- Answerable verbally in 60–120 seconds.
+- Under 30 words each, no numbering inside strings.
 
-Quality Constraints:
-- If experience is high (e.g., 10–15+ years), include:
-  - performance bottlenecks
-  - low-level mechanics
-  - edge cases and failure modes
-  - scaling or system constraints
-- Avoid obvious topics (e.g., "What is indexing?" for senior SQL).
-- Prefer “why”, “how”, and “what happens under the hood”.
+Before writing final output, think step by step in a <scratchpad>:
+1. List 8-10 candidate topics specific to this Role + Domain.
+2. For each, ask: "Would a competent engineer with exactly ${experience} years in this domain find this trivially easy, appropriately challenging, or unfairly obscure?" Discard trivially-easy and unfairly-obscure candidates.
+3. Pick the best 5, ensuring they map to the 5 categories above with no overlap.
+4. Sanity-check: if experience ≥ 10, would this question insult a senior engineer's intelligence? If yes, sharpen it.
 
-Formatting Rules:
-- Keep each question under 30 words.
-- No numbering inside strings.
-- No explanations, no metadata, no extra text.
+After the scratchpad, output ONLY the final JSON block below with no extra commentary after it:
 
-Output (STRICT JSON only):
 {
   "questions": [
     "Question 1",
